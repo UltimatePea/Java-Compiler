@@ -1,8 +1,6 @@
 module Tokenizer (
     Token(..),
     TokenType(..),
-    getTokenContent, 
-    getTokenType,
     tokenize,
     removeEmpty
     ) where
@@ -26,19 +24,13 @@ removeEmpty xs = filter isTokenQualified xs
 
 
 data Token = Token 
-                    String -- string content
-                    TokenType  -- Identifier if the token is valid ID([a-zA-Z0-9], 
-                    deriving (Show, Eq)
+                    { getTokenContent :: String -- string content
+                    , getTokenType :: TokenType  -- Identifier if the token is valid ID([a-zA-Z0-9], 
+                    } deriving (Show, Eq)
 
 data TokenType = Identifier | Comment | StringLiteral | LineBreak | SpaceCharacter | SpecialCharacter
                     deriving (Show, Eq)
 
--- parses and gets the token content that is compatible with C Macro
-getTokenContent :: Token -> String
-getTokenContent (Token s _) = s
-
-getTokenType :: Token -> TokenType
-getTokenType (Token _ t) = t
 
 
 
