@@ -67,7 +67,7 @@ interpreteModifier tks func = interpreteModifierRec [] tks
                 | getTokenContent x == "class" = let (classDefTks, remaining) = seekTokenForward xs "{" -- extract difinition
                                                      (classBodyTks, rest) = matchParenthesis remaining Brace -- extract body 
                                                  in interpreteClassDeclaration classDefTks classBodyTks tks
-                                                    : trace ("Created class " ++ (show classDefTks) ++ " Continuing at " ++ (show $ take 5 rest)) 
+                                                    : --trace ("Created class " ++ (show classDefTks) ++ " Continuing at " ++ (show $ take 5 rest)) 
                                                         (func rest)
                  -- assume identifier, see if it is a variable or a function
                  -- constructor
@@ -79,54 +79,62 @@ interpreteModifier tks func = interpreteModifierRec [] tks
                                                     : func rest
                 -- protection
                 | length xs < 2 = error $ "Unrecognized token " ++ show (x:xs)
-                 -- function 
+                 --
+                 --
+                 -- The distinguishing feature of a method declaration from a field declaration is that 
+                 -- In field declaration, `=' sign comes bofore any open parenthesis, if there is any.
+                 --
+                 -- The method is :: search for `=', `;',`(' in the following token, should the first two appear first,
+                 -- it is a local variable or a field declaration. Else it is a Method declaration
+                 --
+                 --
                  -- !!1 means (head . tail)
-                | getTokenContent (xs !! 1) == "(" = let returnVal = x 
-                                                         funcName = head xs 
-                                                                                 --TWO DROPS (0) -> funcName (1) -> left paren
-                                                         (params, remaining)  = matchParenthesis (drop 2 xs) Paren -- extract parameters 
-                                                         (excepTks, remaining2) = seekTokenForward remaining "{"
-                                                         (functionBody, rest) = matchParenthesis remaining2 Brace -- extract function body, tail to drop "{"
-                                                     in interpreteFunctionDeclaration tks returnVal funcName params excepTks functionBody
-                                                        : func rest
-                -- local variable
-                | getTokenContent (xs !! 1) == ";" 
-                   || getTokenContent (xs !! 1) == ","
-                   || getTokenContent (xs !! 1) == "="  =  let typeTk = x
-                                                           in case getTokenContent (xs !! 1) of
-                                                                ";" -> let varName = head xs 
-                                                                        in interpreteFieldDeclaration tks typeTk varName Nothing 
-                                                                            : func (drop 2 xs) -- TWO DROPS (0) -> var name, (1) -> ;
-                                                                -- seperate by comma, and initialize
-                                                                _ -> let (allFieldTokens, rest) = seekUntilNextUnparenthesizedCharacter xs ";" 
-                                                                            -- seperate tokens by space
-                                                                         fieldDeclarations = seperateByNoneParenthesizedCharacter allFieldTokens ","
-                                                                            
+                | otherwise =  let decideDeclaration :: [Token] -> Maybe String
+                                   decideDeclaration [] = Nothing
+                                   decideDeclaration (x:xs) 
+                                        = case getTokenContent x of
+                                            ";" -> Just "Field"
+                                            "=" -> Just "Field"
+                                            "(" -> Just "Method"
+                                            _ -> decideDeclaration xs
+               in  case decideDeclaration xs of 
+                     Nothing -> error $ "Unrecognized Token" ++ show x ++ "   Rest   " ++ show xs
+                     Just "Method" -> let (declarationTks, remaining3) = seekTokenForward xs "("
+                                          (params, remaining)  = matchParenthesis remaining3 Paren -- extract parameters 
+                                          (excepTks, remaining2) = seekTokenForward remaining "{"
+                                          (functionBody, rest) = matchParenthesis remaining2 Brace -- extract function body, tail to drop "{"
+                                    in interpreteFunctionDeclaration tks (x:declarationTks) params excepTks functionBody
+                                        : func rest
+                     Just "Field" -> 
+                                    let (allFieldTokens, rest) = seekUntilNextUnparenthesizedCharacter xs ";" 
+                                    in interpreteFieldDeclaration tks (x:allFieldTokens) ++ func rest
+                                        -- seperate tokens by comma
+                                  --      fieldDeclarations = seperateByNoneParenthesizedCharacter allFieldTokens ","
+                                  --              
 
 
-                                                                       in trace ( "Got Field Declarations: " ++ show fieldDeclarations) $
-                                                                         (flip map) fieldDeclarations (\fieldToken -> 
-                                                                            trace ("Mapping filedToken " ++ show fieldToken) $
-                                                                            let varName = head fieldToken
-                                                                            in 
-                                                                            -- remove DEBUG LEGACY --
-                                                                            --if length fieldToken ==0 
-                                                                            --then interpreteFieldDeclaration tks typeTk varName Nothing
-                                                                            --else
-                                                                            -- remove ABOVE
+                                  --  in --trace ( "Got Field Declarations: " ++ show fieldDeclarations) $
+                                  --       (flip map) fieldDeclarations (\fieldToken -> 
+                                  --          trace ("Mapping filedToken " ++ show fieldToken) $
+                                  --          let varName = head fieldToken
+                                  --          in 
+                                  --          -- remove DEBUG LEGACY --
+                                  --          --if length fieldToken ==0 
+                                  --          --then interpreteFieldDeclaration tks typeTk varName Nothing
+                                  --          --else
+                                  --          -- remove ABOVE
 
-                                                                               if length fieldToken == 1 
-                                                                               then interpreteFieldDeclaration tks typeTk varName Nothing 
-                                                                               else if getTokenContent(fieldToken !! 1) == "="
-                                                                                    then let initTks = drop 2 fieldToken
-                                                                                         in interpreteFieldDeclaration tks typeTk varName (Just initTks)
-                                                                                    else error $ "Expected token string " ++ show fieldToken
-                                                                       
-                                                                       
-                                                                       
-                                                                       ) ++ func rest
+                                  --             if length fieldToken == 1 
+                                  --             then interpreteFieldDeclaration tks typeTk varName Nothing 
+                                  --             else if getTokenContent(fieldToken !! 1) == "="
+                                  --                  then let initTks = drop 2 fieldToken
+                                  --                       in interpreteFieldDeclaration tks typeTk varName (Just initTks)
+                                  --                  else error $ "Expected token string " ++ show fieldToken
+                                  --     
+                                  --     
+                                  --     
+                                  --     ) ++ func rest
 
-                | otherwise = error $ "Unrecognized Token" ++ show x ++ "   Rest   " ++ show xs
 
 -- seperate a token by non parenthesized characer, 
 seperateByNoneParenthesizedCharacter :: [Token] -> String -> [[Token]]
@@ -148,24 +156,23 @@ seekUntilNextUnparenthesizedCharacter tks str = seekUntilNextUnparenthesizedChar
                                    in seekUntilNextUnparenthesizedCharacterRec (a ++ (x:internal) ++ [(Token "]" SpecialCharacter)], remaining)
                             "{" -> let (internal, remaining)  = matchParenthesis xs Brace
                                    in seekUntilNextUnparenthesizedCharacterRec (a ++ (x:internal) ++ [(Token "}" SpecialCharacter)], remaining)
+                            "<" -> let (internal, remaining)  = matchParenthesis xs Angle
+                                   in seekUntilNextUnparenthesizedCharacterRec (a ++ (x:internal) ++ [(Token ">" SpecialCharacter)], remaining)
                             c -> if c == str then (a, xs) else (a ++ [x] , xs)
 
 interpreteFieldDeclaration :: [Token] -- Annotation
-                              -> Token -- Type
-                              -> Token -- Name
-                              -> Maybe [Token] -- initialization Statement
-                              -> Declaration
-interpreteFieldDeclaration annotationTks typeTk nameTk initStmtMaybe = Field "NOT IMPLEMENTED" "NOT IMPLEMENTED" [] Nothing
+                              -> [Token] -- Declaration, including maybe generic type arguments, and parameters, commas to seperate arguments and initialization statements
+                              -> [Declaration] -- a list of field objects
+interpreteFieldDeclaration annotationTks declarations = [Field "NOT IMPLEMENTED" "NOT IMPLEMENTED" [] Nothing]
 
 -- helper method to Interpret function
 interpreteFunctionDeclaration :: [Token] -- Annotation
-                              -> Token -- Return Type
-                              -> Token -- Name
+                              -> [Token] -- Declaration, including maybe generic type arguments
                               -> [Token] -- Parameter Tokens
                               -> [Token] -- Exceptions
                               -> [Token] -- Function Body
                               -> Declaration -- the method declaration
-interpreteFunctionDeclaration  annotationTks typeTk nameTk paramTks excepTks funcBodyTks= Method "NOT IMPLEMENTED" "NOT IMPLEMENTED" [] [] [] []
+interpreteFunctionDeclaration  annotationTks genericArgs paramTks excepTks funcBodyTks= Method "NOT IMPLEMENTED" "NOT IMPLEMENTED" [] [] [] []
 
 -- helper method to Interpret function
 interpreteConstructorDeclaration :: [Token] -- Annotation
@@ -279,16 +286,19 @@ data Statement = EmptyStatement
 data ParenthesisType = Paren -- left : '(', right : ')'
                      | Bracket -- left :: '[', right : ']'
                      | Brace -- left :: '{', right: '}'
+                     | Angle -- left :: '<', right: '>'
 
 left :: ParenthesisType -> Token
 left Paren = Token "(" SpecialCharacter
 left Bracket = Token "[" SpecialCharacter
 left Brace = Token "{" SpecialCharacter
+left Angle = Token "<" SpecialCharacter
 
 right :: ParenthesisType -> Token
 right Paren = Token ")" SpecialCharacter
 right Bracket = Token "]" SpecialCharacter
 right Brace = Token "}" SpecialCharacter
+right Angle = Token ">" SpecialCharacter
 
 
 matchParenthesis :: [Token] -- the tokens NOT including the starting parenthesis
@@ -299,7 +309,7 @@ matchParenthesis tks tp = matchParenthesisRec 1 ([],  tks)
      where matchParenthesisRec :: Int  -- number of left parenthesis not matched so far
                                   -> ([Token], [Token]) -- move one byte from snd to fst 
                                   -> ([Token], [Token]) -- result after moving
-           matchParenthesisRec count (a, b) | trace ("Called matchParenthesisRec on count = " ++ show count ++ " a = " ++ show a ++ " b = " ++ show b) False = undefined
+           --matchParenthesisRec count (a, b) | trace ("Called matchParenthesisRec on count = " ++ show count ++ " a = " ++ show a ++ " b = " ++ show b) False = undefined
            matchParenthesisRec 0 (a,b) = (init a,b) -- use init to drop trailing parenthesis
            matchParenthesisRec count (a,[]) = error $ "cannot match parenthesis " ++ show (right tp) ++ " expected "
            matchParenthesisRec count (a,(x:xs))
