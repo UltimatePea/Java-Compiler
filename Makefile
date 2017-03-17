@@ -1,5 +1,7 @@
 
 
+cabal:
+	cabal build
 
 analyzer: JavaAnalyzer.o bin
 	ghc -o bin/JavaAnalyzer Tokenizer.o JavaAnalyzer.o

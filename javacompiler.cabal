@@ -69,7 +69,7 @@ cabal-version:       >=1.10
 executable JavaAnalyzer 
   -- Modules exported by the library.
   hs-source-dirs: src
-  exposed-modules:      JavaAnalyzer,  Tokenizer
+  --exposed-modules:      JavaAnalyzer,  Tokenizer
 
   main-is: JavaAnalyzer.hs
   

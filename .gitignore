@@ -2,3 +2,4 @@ bin/
 *.hi
 *.o
 dist/
+error_out

@@ -26,10 +26,16 @@ removeEmpty xs = filter isTokenQualified xs
 data Token = Token 
                     { getTokenContent :: String -- string content
                     , getTokenType :: TokenType  -- Identifier if the token is valid ID([a-zA-Z0-9], 
-                    } deriving (Show, Eq)
+                    } deriving (Eq)
+
+
+instance Show Token where
+    show tk = "`" ++ show (getTokenContent tk) ++ "'"
+
 
 data TokenType = Identifier | Comment | StringLiteral | LineBreak | SpaceCharacter | SpecialCharacter
                     deriving (Show, Eq)
+
 
 
 
